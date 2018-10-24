@@ -13,6 +13,12 @@ import org.eclipse.mat.snapshot.model.IClass;
 import org.eclipse.mat.snapshot.model.IObject;
 import org.eclipse.mat.util.IProgressListener;
 
+/**
+ * An abstract {@link IQuery} implementation that provides helper methods for
+ * reducing boilerplate code.
+ * 
+ * @author Andy Senn
+ */
 public abstract class AbstractQuery implements IQuery {
 
 	@Argument

@@ -29,18 +29,23 @@ public class TomcatHTTPRequestQuery extends AbstractQuery {
 
 		List<TomcatHTTPRequestQueryResult> results = new ArrayList<>();
 		for (IObject request : requests) {
+			// @formatter:off
 			results.add(new TomcatHTTPRequestQueryResult(
 					parseMessageBytes(request, "serverNameMB"),
 					parseMessageBytes(request, "methodMB"),
-					parseMessageBytes(request, "uriMB")
+					parseMessageBytes(request, "uriMB"),
+					request.getUsedHeapSize(),
+					request.getRetainedHeapSize()
 			));
+			// @formatter:on
 		}
 
 		if (requests.size() == 0) {
 			return new TextResult(messageNotDetected());
 		}
 
-		return new ListResult(TomcatHTTPRequestQueryResult.class, results, "host", "method", "uri");
+		return new ListResult(TomcatHTTPRequestQueryResult.class, results, "host", "method", "uri", "shallowHeap",
+				"retainedHeap");
 	}
 
 	private String parseMessageBytes(IObject request, String field) throws SnapshotException {
@@ -63,13 +68,13 @@ public class TomcatHTTPRequestQuery extends AbstractQuery {
 
 			return new String(bytes, start, end - start);
 		}
-		
+
 		// Try "charChunk"
 		IObject charChunk = (IObject) messageBytes.resolveValue("charC");
 		if (charChunk == null) {
 			return "null";
 		}
-		
+
 		boolean charChunkSet = (boolean) charChunk.resolveValue("isSet");
 		if (charChunkSet) {
 			char[] chars = PrimitiveValueUtil.getCharArray(charChunk, "buff");
@@ -87,11 +92,16 @@ public class TomcatHTTPRequestQuery extends AbstractQuery {
 		private final String host;
 		private final String method;
 		private final String uri;
+		private final long shallowHeap;
+		private final long retainedHeap;
 
-		public TomcatHTTPRequestQueryResult(String host, String method, String uri) {
+		public TomcatHTTPRequestQueryResult(String host, String method, String uri, long shallowHeap,
+				long retainedHeap) {
 			this.host = host;
 			this.method = method;
 			this.uri = uri;
+			this.shallowHeap = shallowHeap;
+			this.retainedHeap = retainedHeap;
 		}
 
 		public String getHost() {
@@ -104,6 +114,14 @@ public class TomcatHTTPRequestQuery extends AbstractQuery {
 
 		public String getUri() {
 			return uri;
+		}
+
+		public long getShallowHeap() {
+			return shallowHeap;
+		}
+
+		public long getRetainedHeap() {
+			return retainedHeap;
 		}
 
 	}
