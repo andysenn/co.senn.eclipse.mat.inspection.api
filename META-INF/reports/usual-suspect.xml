@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section xmlns="http://www.eclipse.org/mat/report.xsd"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.eclipse.org/mat/report.xsd report.xsd"
+	name="Usual Suspects">
+	
+	<section name="Database Connection Pool (HikariCP)">
+		<query name="Database Connection Pool Exhaustion">
+			<command>suspect:connection-pool-exhaustion-hikaricp</command>
+		</query>
+	</section>
+	
+	<section name="Servlet Container (Tomcat)">
+		<query name="Non-Started Web Application Contexts">
+			<command>suspect:servlet-container-non-started-contexts</command>
+		</query>
+	</section>
+
+</section>
