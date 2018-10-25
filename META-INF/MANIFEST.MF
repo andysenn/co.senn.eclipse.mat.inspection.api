@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Eclipse Memory Analyzer Extensions
-Bundle-SymbolicName: mat-extensions;singleton:=true
+Bundle-SymbolicName: eclipse-mat-inspections;singleton:=true
 Bundle-Version: 1.0.0.SNAPSHOT
 Automatic-Module-Name: mat-extensions
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8

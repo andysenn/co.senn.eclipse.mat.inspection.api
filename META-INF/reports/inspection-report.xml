@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<query xmlns="http://www.eclipse.org/mat/report.xsd"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.eclipse.org/mat/report.xsd report.xsd"
+	name="Inspection Report">
+	<command>inspection-parent:suspects</command>
+</query>

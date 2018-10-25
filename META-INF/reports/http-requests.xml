@@ -7,5 +7,5 @@
 	<query name="Tomcat HTTP Requests">
 		<command>http:requests-tomcat</command>
 	</query>
-
+	
 </section>
