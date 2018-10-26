@@ -2,11 +2,14 @@ package co.senn.eclipse.mat.inspection.exec;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.Platform;
@@ -14,13 +17,18 @@ import org.eclipse.mat.query.IQuery;
 import org.eclipse.mat.query.IResult;
 import org.eclipse.mat.query.annotations.Argument;
 import org.eclipse.mat.query.annotations.CommandName;
+import org.eclipse.mat.query.results.TextResult;
 import org.eclipse.mat.report.QuerySpec;
 import org.eclipse.mat.report.SectionSpec;
+import org.eclipse.mat.report.Spec;
 import org.eclipse.mat.snapshot.ISnapshot;
 import org.eclipse.mat.util.IProgressListener;
 
 import co.senn.eclipse.mat.inspection.api.IInspection;
+import co.senn.eclipse.mat.inspection.api.IInspectionResult;
 import co.senn.eclipse.mat.inspection.api.ITechnology;
+import co.senn.eclipse.mat.inspection.api.Ignore;
+import co.senn.eclipse.mat.inspection.api.InspectionResultSeverity;
 
 @CommandName("inspections:suspects")
 public class InspectionQuerySpec implements IQuery {
@@ -37,6 +45,7 @@ public class InspectionQuerySpec implements IQuery {
 		listener.beginTask("Inspecting technologies", inspectionsByTechnology.size());
 
 		Collection<TechnologySpec> presentTechnologies = new ArrayList<>();
+		Collection<TechnologySpec> ignoredTechnologies = new ArrayList<>();
 		Collection<TechnologySpec> missingTechnologies = new ArrayList<>();
 
 		SectionSpec parent = new SectionSpec("Inspection Report");
@@ -47,37 +56,34 @@ public class InspectionQuerySpec implements IQuery {
 			technology = entry.getKey();
 			inspections = entry.getValue();
 
-			listener.subTask("Inspecting " + technology.getName());
+			if (isIgnored(technology.getClass())) {
+				ignoredTechnologies.add(technology);
+			} else {
+				listener.subTask("Inspecting " + technology.getName());
 
-			try {
-				if (technology.getTechnology().isPresent(snapshot)) {
-					presentTechnologies.add(technology);
-
-					SectionSpec technologySection = new SectionSpec(technology.getName());
-					IResult result;
-					for (InspectionSpec inspection : inspections) {
-						result = inspection.getInspection().execute(snapshot, listener);
-						if (result != null) {
-							technologySection.add(new QuerySpec(inspection.getName(), result));
-						}
+				try {
+					if (technology.getTechnology().isPresent(snapshot)) {
+						presentTechnologies.add(technology);
+						parent.add(createTechnologySection(technology, inspections, listener));
+					} else {
+						missingTechnologies.add(technology);
 					}
-					parent.add(technologySection);
-				} else {
-					missingTechnologies.add(technology);
+				} finally {
+					listener.worked(1);
 				}
-			} finally {
-				listener.worked(1);
 			}
 		}
 
 		if (missingTechnologies.size() > 0) {
-			SectionSpec missingTechnologySection = new SectionSpec("Undetected Technologies");
-
+			StringBuilder sb = new StringBuilder("The following technologies are supported, but were not detected:\n");
 			for (TechnologySpec missingTechnology : missingTechnologies) {
-				missingTechnologySection.add(new SectionSpec(missingTechnology.getName()));
+				sb.append("\n").append(missingTechnology.getName());
 			}
 
+			QuerySpec missingTechnologySection = new QuerySpec("Undetected Technologies",
+					new TextResult(sb.toString()));
 			missingTechnologySection.set("html.collapsed", "true");
+
 			parent.add(missingTechnologySection);
 		}
 
@@ -125,6 +131,38 @@ public class InspectionQuerySpec implements IQuery {
 		}
 
 		return inspectionSpecs.stream().collect(Collectors.groupingBy(InspectionSpec::getTechnology));
+	}
+
+	private boolean isIgnored(Class<?> clazz) {
+		return clazz.isAnnotationPresent(Ignore.class);
+	}
+
+	private Spec createTechnologySection(TechnologySpec technology, List<InspectionSpec> inspections,
+			IProgressListener listener) throws Exception {
+		SectionSpec technologySection = new SectionSpec(technology.getName());
+		Map<InspectionResultSeverity, AtomicInteger> severityCounts = new HashMap<>();
+		IInspectionResult result;
+		for (InspectionSpec inspection : inspections) {
+			if (!isIgnored(inspection.getClass())) {
+				result = inspection.getInspection().execute(snapshot, listener);
+				if (result != null) {
+					severityCounts.computeIfAbsent(result.getSeverity(), s -> new AtomicInteger(0)).incrementAndGet();
+					technologySection.add(new QuerySpec(inspection.getName() + " - " + result.getSeverity().getName(),
+							result.getResult()));
+				}
+			}
+		}
+
+		if (severityCounts.size() > 0) {
+			StringBuilder sb = new StringBuilder(technologySection.getName()).append(" (");
+			sb.append(Stream.of(InspectionResultSeverity.values()).filter(severityCounts::containsKey)
+					.map(s -> severityCounts.get(s) + " " + s.getName()).collect(Collectors.joining(", ")));
+			sb.append(")");
+
+			technologySection.setName(sb.toString());
+		}
+
+		return technologySection;
 	}
 
 	private static abstract class AbstractSpec {

@@ -1,6 +1,6 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: Eclipse Memory Analyzer Inspections
+Bundle-Name: Inspection Support
 Bundle-SymbolicName: co.senn.eclipse.mat.inspection;singleton:=true
 Bundle-Version: 1.0.0.SNAPSHOT
 Automatic-Module-Name: mat-extensions
@@ -8,3 +8,4 @@ Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Require-Bundle: org.eclipse.mat.api;bundle-version="1.7.0";visibility:=reexport,
  org.eclipse.core.runtime;bundle-version="3.11.1"
 Export-Package: co.senn.eclipse.mat.inspection.api
+Bundle-Vendor: Andy Senn

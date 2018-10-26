@@ -1,6 +1,5 @@
 package co.senn.eclipse.mat.inspection.api;
 
-import org.eclipse.mat.query.IResult;
 import org.eclipse.mat.snapshot.ISnapshot;
 import org.eclipse.mat.util.IProgressListener;
 
@@ -15,6 +14,6 @@ import org.eclipse.mat.util.IProgressListener;
  */
 public interface IInspection {
 
-	IResult execute(ISnapshot snapshot, IProgressListener listener) throws Exception;
+	IInspectionResult execute(ISnapshot snapshot, IProgressListener listener) throws Exception;
 
 }

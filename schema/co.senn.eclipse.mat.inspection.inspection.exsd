@@ -4,10 +4,10 @@
 
    <annotation>
       <appinfo>
-         <meta.schema plugin="co.senn.eclipse.mat.inspection" id="co.senn.eclipse.mat.inspection.technology" name="Eclipse Memory Analyzer Inspection Technology"/>
+         <meta.schema plugin="co.senn.eclipse.mat.inspection" id="co.senn.eclipse.mat.inspection.inspection" name="Eclipse Memory Analyzer Inspection"/>
       </appinfo>
       <documentation>
-         This extension point can be used to add a technology for inspection in Eclipse MAT
+         This extension point can be used to add an inspection to a technology in Eclipse MAT
       </documentation>
    </annotation>
 
@@ -19,7 +19,7 @@
       </annotation>
       <complexType>
          <sequence minOccurs="1" maxOccurs="unbounded">
-         	<element ref="technology"/>
+            <element ref="inspection"/>
          </sequence>
          <attribute name="point" type="string" use="required">
             <annotation>
@@ -48,15 +48,15 @@
       </complexType>
    </element>
 
-   <element name="technology">
+   <element name="inspection">
       <complexType>
          <attribute name="impl" type="string" use="required">
             <annotation>
                <documentation>
-                  The fully-qualified name of the Technology implementation
+                  
                </documentation>
                <appinfo>
-                  <meta.attribute kind="java" basedOn=":co.senn.eclipse.mat.inspection.api.ITechnology"/>
+                  <meta.attribute kind="java" basedOn=":co.senn.eclipse.mat.inspection.api.IInspection"/>
                </appinfo>
             </annotation>
          </attribute>
@@ -79,6 +79,16 @@
                <documentation>
                   
                </documentation>
+            </annotation>
+         </attribute>
+         <attribute name="technology" type="string" use="required">
+            <annotation>
+               <documentation>
+                  
+               </documentation>
+               <appinfo>
+                  <meta.attribute kind="identifier" basedOn="co.senn.eclipse.mat.inspection.technology/technology/@id"/>
+               </appinfo>
             </annotation>
          </attribute>
       </complexType>

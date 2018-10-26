@@ -1,25 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
+	
    <extension-point id="co.senn.eclipse.mat.inspection.inspection" name="Eclipse Memory Analyzer Inspection" schema="schema/co.senn.eclipse.mat.inspection.inspection.exsd"/>
    <extension-point id="co.senn.eclipse.mat.inspection.technology" name="Eclipse Memory Analyzer Inspection Technology" schema="schema/co.senn.eclipse.mat.inspection.technology.exsd"/>
-
+	
 	<extension point="org.eclipse.mat.report.query">
 		<query impl="co.senn.eclipse.mat.inspection.exec.InspectionQuerySpec"/>
 	</extension>
 	
 	<!-- Note: All reports must end with ":suspects" or ":top_consumers" to appear on the Overview page -->
 	<extension point="org.eclipse.mat.report.report">
-		<!--
-		<report id="usual:suspects"
-				description="checks for commonly found issues"
-				file="META-INF/reports/usual-suspect.xml"
-				name="Usual Suspects"/>
-		<report id="http-requests:suspects"
-				description="lists all Tomcat HTTP requests"
-				file="META-INF/reports/http-requests.xml"
-				name="HTTP Requests"/>
-		-->
 		<report id="inspections:suspects"
 				description="inspects the present technologies for issues"
 				file="META-INF/reports/inspection-report.xml"
