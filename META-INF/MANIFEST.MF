@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: Inspection Support
 Bundle-SymbolicName: co.senn.eclipse.mat.inspection;singleton:=true
 Bundle-Version: 1.0.0.SNAPSHOT
-Automatic-Module-Name: mat-extensions
+Automatic-Module-Name: co.senn.eclipse.mat.inspection.api
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Require-Bundle: org.eclipse.mat.api;bundle-version="1.7.0";visibility:=reexport,
  org.eclipse.core.runtime;bundle-version="3.11.1"
