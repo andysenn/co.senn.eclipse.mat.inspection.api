@@ -3,5 +3,5 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.eclipse.org/mat/report.xsd report.xsd"
 	name="Inspection Report">
-	<command>inspection-parent:suspects</command>
+	<command>inspections:suspects</command>
 </query>

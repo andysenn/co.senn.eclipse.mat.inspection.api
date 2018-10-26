@@ -1,4 +1,4 @@
-package co.senn.eclipse.mat.ext.thread;
+package co.senn.eclipse.mat.thread;
 
 import java.io.IOException;
 import java.io.Writer;

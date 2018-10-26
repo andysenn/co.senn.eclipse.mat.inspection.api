@@ -1,4 +1,4 @@
-package co.senn.eclipse.mat.ext.thread;
+package co.senn.eclipse.mat.thread;
 
 import org.eclipse.mat.query.IQuery;
 import org.eclipse.mat.query.IResult;

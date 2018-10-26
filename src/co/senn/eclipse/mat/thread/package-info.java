@@ -4,4 +4,4 @@
  * 
  * @author Andy Senn
  */
-package co.senn.eclipse.mat.ext.thread;
+package co.senn.eclipse.mat.thread;

@@ -1,6 +1,7 @@
-package co.senn.eclipse.mat.ext.inspection;
+package co.senn.eclipse.mat.inspection.api;
 
 import org.eclipse.mat.SnapshotException;
+import org.eclipse.mat.snapshot.ISnapshot;
 
 /**
  * An interface for the various technologies (libraries, containers, etc) that
@@ -8,12 +9,8 @@ import org.eclipse.mat.SnapshotException;
  * 
  * @author Andy Senn
  */
-public interface Technology {
+public interface ITechnology {
 
-	String getName();
-
-	boolean isPresent() throws SnapshotException;
-
-	Inspection[] getInspections();
+	boolean isPresent(ISnapshot snapshot) throws SnapshotException;
 
 }
