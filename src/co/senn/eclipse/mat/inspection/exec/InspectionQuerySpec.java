@@ -1,8 +1,24 @@
+/*
+ * Copyright 2018 Andy Senn
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package co.senn.eclipse.mat.inspection.exec;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -31,7 +47,7 @@ import co.senn.eclipse.mat.inspection.api.Ignore;
 import co.senn.eclipse.mat.inspection.api.InspectionResultSeverity;
 
 @CommandName("inspections:suspects")
-public class InspectionQuerySpec implements IQuery {
+public final class InspectionQuerySpec implements IQuery {
 
 	@Argument
 	public ISnapshot snapshot;
@@ -40,19 +56,32 @@ public class InspectionQuerySpec implements IQuery {
 	public IResult execute(IProgressListener listener) throws Exception {
 		listener.subTask("Resolving inspections");
 
+		// Lookup all of the technologies and their inspections
 		Map<TechnologySpec, List<InspectionSpec>> inspectionsByTechnology = getInspections();
 
 		listener.beginTask("Inspecting technologies", inspectionsByTechnology.size());
 
+		// Technologies that were present in the snapshot and for which inspections were executed
 		Collection<TechnologySpec> presentTechnologies = new ArrayList<>();
+
+		// Technologies that were annotated with {@link Ignore}, whether present or not
 		Collection<TechnologySpec> ignoredTechnologies = new ArrayList<>();
+
+		// Technologies that were not present in the snapshot
 		Collection<TechnologySpec> missingTechnologies = new ArrayList<>();
 
+		// Technologies that were skipped due to cancellation, whether present or not
+		Collection<TechnologySpec> skippedTechnologies = new ArrayList<>();
+
+		// Create the parent section
 		SectionSpec parent = new SectionSpec("Inspection Report");
 
+		Iterator<Entry<TechnologySpec, List<InspectionSpec>>> iterator = inspectionsByTechnology.entrySet().iterator();
+		Entry<TechnologySpec, List<InspectionSpec>> entry;
 		TechnologySpec technology;
 		List<InspectionSpec> inspections;
-		for (Entry<TechnologySpec, List<InspectionSpec>> entry : inspectionsByTechnology.entrySet()) {
+		while (iterator.hasNext()) {
+			entry = iterator.next();
 			technology = entry.getKey();
 			inspections = entry.getValue();
 
@@ -64,7 +93,10 @@ public class InspectionQuerySpec implements IQuery {
 				try {
 					if (technology.getTechnology().isPresent(snapshot)) {
 						presentTechnologies.add(technology);
-						parent.add(createTechnologySection(technology, inspections, listener));
+						Spec technologySection = createTechnologySection(technology, inspections, listener);
+						if (technologySection != null) {
+							parent.add(technologySection);
+						}
 					} else {
 						missingTechnologies.add(technology);
 					}
@@ -72,19 +104,33 @@ public class InspectionQuerySpec implements IQuery {
 					listener.worked(1);
 				}
 			}
+
+			if (listener.isCanceled()) {
+				break;
+			}
 		}
 
+		// If there were no results, then report that no issues were found
+		if (parent.getChildren().isEmpty()) {
+			parent.add(new SectionSpec("No issues found"));
+		}
+
+		// If there are still technologies on the iterator, they were skipped
+		while (iterator.hasNext()) {
+			entry = iterator.next();
+			skippedTechnologies.add(entry.getKey());
+		}
+
+		// If there were skipped technologies, print a list of them in a collapsed section
+		if (skippedTechnologies.size() > 0) {
+			parent.add(createTechnologyListSpec("The following technologies were skipped:", "Skipped Technologies",
+					skippedTechnologies));
+		}
+
+		// If there were non-present technologies, print a list of them in a collapsed section
 		if (missingTechnologies.size() > 0) {
-			StringBuilder sb = new StringBuilder("The following technologies are supported, but were not detected:\n");
-			for (TechnologySpec missingTechnology : missingTechnologies) {
-				sb.append("\n").append(missingTechnology.getName());
-			}
-
-			QuerySpec missingTechnologySection = new QuerySpec("Undetected Technologies",
-					new TextResult(sb.toString()));
-			missingTechnologySection.set("html.collapsed", "true");
-
-			parent.add(missingTechnologySection);
+			parent.add(createTechnologyListSpec("The following technologies are supported, but were not detected:",
+					"Undetected Technologies", missingTechnologies));
 		}
 
 		return parent;
@@ -130,7 +176,17 @@ public class InspectionQuerySpec implements IQuery {
 			}
 		}
 
-		return inspectionSpecs.stream().collect(Collectors.groupingBy(InspectionSpec::getTechnology));
+		Map<TechnologySpec, List<InspectionSpec>> inspectionsByTechnology = inspectionSpecs.stream()
+				.filter(i -> i.getTechnology() != null).collect(Collectors.groupingBy(InspectionSpec::getTechnology));
+
+		List<InspectionSpec> otherInspections = inspectionSpecs.stream().filter(i -> i.getTechnology() == null)
+				.collect(Collectors.toList());
+
+		if (otherInspections.size() > 0) {
+			inspectionsByTechnology.put(new TechnologySpec("", "Other", "", s -> true), otherInspections);
+		}
+
+		return inspectionsByTechnology;
 	}
 
 	private boolean isIgnored(Class<?> clazz) {
@@ -154,15 +210,26 @@ public class InspectionQuerySpec implements IQuery {
 		}
 
 		if (severityCounts.size() > 0) {
-			StringBuilder sb = new StringBuilder(technologySection.getName()).append(" (");
-			sb.append(Stream.of(InspectionResultSeverity.values()).filter(severityCounts::containsKey)
-					.map(s -> severityCounts.get(s) + " " + s.getName()).collect(Collectors.joining(", ")));
-			sb.append(")");
+			technologySection.setName(String.format("%s (%s)", technologySection.getName(),
+					Stream.of(InspectionResultSeverity.values()).filter(severityCounts::containsKey)
+							.map(s -> severityCounts.get(s) + " " + s.getName()).collect(Collectors.joining(", "))));
 
-			technologySection.setName(sb.toString());
+			return technologySection;
+		} else {
+			return null;
+		}
+	}
+
+	private Spec createTechnologyListSpec(String message, String header, Collection<TechnologySpec> technologySpecs) {
+		StringBuilder sb = new StringBuilder(message).append("\n");
+		for (TechnologySpec technologySpec : technologySpecs) {
+			sb.append("\n").append(technologySpec.getName());
 		}
 
-		return technologySection;
+		QuerySpec technologyListSpec = new QuerySpec(header, new TextResult(sb.toString()));
+		technologyListSpec.set("html.collapsed", "true");
+
+		return technologyListSpec;
 	}
 
 	private static abstract class AbstractSpec {

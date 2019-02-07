@@ -2,8 +2,8 @@
 <?eclipse version="3.4"?>
 <plugin>
 	
-   <extension-point id="co.senn.eclipse.mat.inspection.inspection" name="Eclipse Memory Analyzer Inspection" schema="schema/co.senn.eclipse.mat.inspection.inspection.exsd"/>
-   <extension-point id="co.senn.eclipse.mat.inspection.technology" name="Eclipse Memory Analyzer Inspection Technology" schema="schema/co.senn.eclipse.mat.inspection.technology.exsd"/>
+	<extension-point id="co.senn.eclipse.mat.inspection.inspection" name="Eclipse Memory Analyzer Inspection" schema="schema/co.senn.eclipse.mat.inspection.inspection.exsd"/>
+	<extension-point id="co.senn.eclipse.mat.inspection.technology" name="Eclipse Memory Analyzer Inspection Technology" schema="schema/co.senn.eclipse.mat.inspection.technology.exsd"/>
 	
 	<extension point="org.eclipse.mat.report.query">
 		<query impl="co.senn.eclipse.mat.inspection.exec.InspectionQuerySpec"/>
