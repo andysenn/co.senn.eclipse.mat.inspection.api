@@ -17,7 +17,25 @@ package co.senn.eclipse.mat.inspection.api;
 
 public enum InspectionResultSeverity {
 
-	INFO("Info"), WARN("Warning"), SEVERE("Severe");
+	/**
+	 * Indicates that the result is for informational purposes only
+	 */
+	INFO("Info"),
+
+	/**
+	 * Indicates that the result is potentially indicative of an issue
+	 */
+	WARN("Warning"),
+
+	/**
+	 * Indicates that the result is very likely indicative of an issue
+	 */
+	SEVERE("Severe"),
+
+	/**
+	 * Indicates that the inspection failed to execute
+	 */
+	FAILURE("Failure");
 
 	private final String name;
 

@@ -137,6 +137,26 @@ public final class PrimitiveValueUtil {
 		}
 		return true;
 	}
+	
+	/**
+	 * Attempts to parse the provided Object as a Long. If successful, the
+	 * Long value is passed to the specified consumer. This method also returns a
+	 * boolean indicating whether the provided Object could be parsed as a Long.
+	 * 
+	 * @param object The object to be parsed to a Long
+	 * @param ifInt  The consumer to which the Long value will be passed, if
+	 *               properly parsed
+	 * @return A boolean indicating whether the provided Object could be parsed as
+	 *         a Long
+	 */
+	public static boolean tryParseLong(Object object, Consumer<Long> ifLong) {
+		try {
+			ifLong.accept(Long.valueOf(String.valueOf(object)));
+		} catch (Exception e) {
+			return false;
+		}
+		return true;
+	}
 
 	/**
 	 * Extracts the value of the member field by the specified name from the

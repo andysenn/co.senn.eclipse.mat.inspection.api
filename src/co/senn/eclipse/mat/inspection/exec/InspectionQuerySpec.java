@@ -23,16 +23,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.eclipse.core.runtime.IConfigurationElement;
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.mat.query.IQuery;
 import org.eclipse.mat.query.IResult;
 import org.eclipse.mat.query.annotations.Argument;
 import org.eclipse.mat.query.annotations.CommandName;
+import org.eclipse.mat.query.results.ListResult;
 import org.eclipse.mat.query.results.TextResult;
 import org.eclipse.mat.report.QuerySpec;
 import org.eclipse.mat.report.SectionSpec;
@@ -40,11 +38,12 @@ import org.eclipse.mat.report.Spec;
 import org.eclipse.mat.snapshot.ISnapshot;
 import org.eclipse.mat.util.IProgressListener;
 
-import co.senn.eclipse.mat.inspection.api.IInspection;
 import co.senn.eclipse.mat.inspection.api.IInspectionResult;
-import co.senn.eclipse.mat.inspection.api.ITechnology;
 import co.senn.eclipse.mat.inspection.api.Ignore;
 import co.senn.eclipse.mat.inspection.api.InspectionResultSeverity;
+import co.senn.eclipse.mat.inspection.internal.spec.InspectionSpec;
+import co.senn.eclipse.mat.inspection.internal.spec.TechnologySpec;
+import co.senn.eclipse.mat.inspection.internal.util.InspectionUtil;
 
 @CommandName("inspections:suspects")
 public final class InspectionQuerySpec implements IQuery {
@@ -57,7 +56,7 @@ public final class InspectionQuerySpec implements IQuery {
 		listener.subTask("Resolving inspections");
 
 		// Lookup all of the technologies and their inspections
-		Map<TechnologySpec, List<InspectionSpec>> inspectionsByTechnology = getInspections();
+		Map<TechnologySpec, List<InspectionSpec>> inspectionsByTechnology = InspectionUtil.getInspections();
 
 		listener.beginTask("Inspecting technologies", inspectionsByTechnology.size());
 
@@ -136,59 +135,6 @@ public final class InspectionQuerySpec implements IQuery {
 		return parent;
 	}
 
-	private Map<TechnologySpec, List<InspectionSpec>> getInspections() throws Exception {
-		IConfigurationElement[] technologyConfigs = Platform.getExtensionRegistry()
-				.getConfigurationElementsFor("co.senn.eclipse.mat.inspection.technology");
-		IConfigurationElement[] inspectionConfigs = Platform.getExtensionRegistry()
-				.getConfigurationElementsFor("co.senn.eclipse.mat.inspection.inspection");
-
-		Collection<TechnologySpec> technologySpecs = new ArrayList<>();
-		for (IConfigurationElement config : technologyConfigs) {
-			Object executable = config.createExecutableExtension("impl");
-			if (executable instanceof ITechnology) {
-				// @formatter:off
-				technologySpecs.add(new TechnologySpec(
-						config.getAttribute("id"),
-						config.getAttribute("name"),
-						config.getAttribute("description"),
-						(ITechnology) executable
-				));
-				// @formatter:on
-			}
-		}
-
-		Map<String, TechnologySpec> technologiesById = technologySpecs.stream()
-				.collect(Collectors.toMap(TechnologySpec::getId, Function.identity()));
-
-		Collection<InspectionSpec> inspectionSpecs = new ArrayList<>();
-		for (IConfigurationElement config : inspectionConfigs) {
-			Object executable = config.createExecutableExtension("impl");
-			if (executable instanceof IInspection) {
-				// @formatter:off
-				inspectionSpecs.add(new InspectionSpec(
-						config.getAttribute("id"),
-						config.getAttribute("name"),
-						config.getAttribute("description"),
-						technologiesById.get(config.getAttribute("technology")),
-						(IInspection) executable
-				));
-				// @formatter:on
-			}
-		}
-
-		Map<TechnologySpec, List<InspectionSpec>> inspectionsByTechnology = inspectionSpecs.stream()
-				.filter(i -> i.getTechnology() != null).collect(Collectors.groupingBy(InspectionSpec::getTechnology));
-
-		List<InspectionSpec> otherInspections = inspectionSpecs.stream().filter(i -> i.getTechnology() == null)
-				.collect(Collectors.toList());
-
-		if (otherInspections.size() > 0) {
-			inspectionsByTechnology.put(new TechnologySpec("", "Other", "", s -> true), otherInspections);
-		}
-
-		return inspectionsByTechnology;
-	}
-
 	private boolean isIgnored(Class<?> clazz) {
 		return clazz.isAnnotationPresent(Ignore.class);
 	}
@@ -197,16 +143,36 @@ public final class InspectionQuerySpec implements IQuery {
 			IProgressListener listener) throws Exception {
 		SectionSpec technologySection = new SectionSpec(technology.getName());
 		Map<InspectionResultSeverity, AtomicInteger> severityCounts = new HashMap<>();
+		List<InspectionFailureResult> inspectionFailures = new ArrayList<>();
 		IInspectionResult result;
 		for (InspectionSpec inspection : inspections) {
 			if (!isIgnored(inspection.getClass())) {
-				result = inspection.getInspection().execute(snapshot, listener);
-				if (result != null) {
-					severityCounts.computeIfAbsent(result.getSeverity(), s -> new AtomicInteger(0)).incrementAndGet();
-					technologySection.add(new QuerySpec(inspection.getName() + " - " + result.getSeverity().getName(),
-							result.getResult()));
+				try {
+					result = inspection.getInspection().execute(snapshot, listener);
+					if (result != null) {
+						if (result.getSeverity() == InspectionResultSeverity.FAILURE) {
+							inspectionFailures.add(createInspectionFailureResult(inspection, null));
+						} else {
+							severityCounts.computeIfAbsent(result.getSeverity(), s -> new AtomicInteger(0))
+									.incrementAndGet();
+							technologySection.add(new QuerySpec(
+									inspection.getName() + " - " + result.getSeverity().getName(), result.getResult()));
+						}
+					}
+				} catch (Throwable t) {
+					inspectionFailures.add(createInspectionFailureResult(inspection, t));
 				}
 			}
+		}
+
+		if (inspectionFailures.size() > 0) {
+			severityCounts.put(InspectionResultSeverity.FAILURE, new AtomicInteger(inspectionFailures.size()));
+
+			QuerySpec failureSpec = new QuerySpec("Failed Inspections", new ListResult(InspectionFailureResult.class,
+					inspectionFailures, "inspectionName", "failureMessage"));
+			failureSpec.set("html.collapsed", "true");
+
+			technologySection.add(failureSpec);
 		}
 
 		if (severityCounts.size() > 0) {
@@ -232,65 +198,41 @@ public final class InspectionQuerySpec implements IQuery {
 		return technologyListSpec;
 	}
 
-	private static abstract class AbstractSpec {
-
-		private final String id;
-		private final String name;
-		private final String description;
-
-		public AbstractSpec(String id, String name, String description) {
-			this.id = id;
-			this.name = name;
-			this.description = description;
+	private InspectionFailureResult createInspectionFailureResult(InspectionSpec inspection, Throwable throwable) {
+		if (throwable == null) {
+			return new InspectionFailureResult(inspection.getName(), "(none)");
 		}
 
-		public String getId() {
-			return id;
+		if (throwable.getMessage() != null && !throwable.getMessage().trim().isEmpty()) {
+			return new InspectionFailureResult(inspection.getName(), throwable.getMessage());
 		}
 
-		public String getName() {
-			return name;
+		StackTraceElement[] stackTrace = throwable.getStackTrace();
+		if (stackTrace.length > 0) {
+			StackTraceElement lastFrame = stackTrace[0];
+			return new InspectionFailureResult(inspection.getName(), String.format("%s at %s:%s",
+					throwable.getClass().getCanonicalName(), lastFrame.getClassName(), lastFrame.getLineNumber()));
 		}
 
-		public String getDescription() {
-			return description;
-		}
-
+		return new InspectionFailureResult(inspection.getName(), throwable.getClass().getCanonicalName());
 	}
 
-	private static final class TechnologySpec extends AbstractSpec {
+	public static class InspectionFailureResult {
 
-		private final ITechnology technology;
+		private final String inspectionName;
+		private final String failureMessage;
 
-		public TechnologySpec(String id, String name, String description, ITechnology technology) {
-			super(id, name, description);
-			this.technology = technology;
+		public InspectionFailureResult(String inspectionName, String failureMessage) {
+			this.inspectionName = inspectionName;
+			this.failureMessage = failureMessage;
 		}
 
-		public ITechnology getTechnology() {
-			return technology;
+		public String getInspectionName() {
+			return inspectionName;
 		}
 
-	}
-
-	private static final class InspectionSpec extends AbstractSpec {
-
-		private final TechnologySpec technology;
-		private final IInspection inspection;
-
-		public InspectionSpec(String id, String name, String description, TechnologySpec technology,
-				IInspection inspection) {
-			super(id, name, description);
-			this.technology = technology;
-			this.inspection = inspection;
-		}
-
-		public TechnologySpec getTechnology() {
-			return technology;
-		}
-
-		public IInspection getInspection() {
-			return inspection;
+		public String getFailureMessage() {
+			return failureMessage;
 		}
 
 	}

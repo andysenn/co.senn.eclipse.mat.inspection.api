@@ -6,7 +6,8 @@ Bundle-Version: 1.0.0.SNAPSHOT
 Automatic-Module-Name: co.senn.eclipse.mat.inspection.api
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Require-Bundle: org.eclipse.mat.api;bundle-version="1.8.1";visibility:=reexport,
- org.eclipse.core.runtime;bundle-version="3.11.1"
+ org.eclipse.core.runtime;bundle-version="3.11.1",
+ org.eclipse.ui
 Export-Package: co.senn.eclipse.mat.inspection.api,
  co.senn.eclipse.mat.inspection.util
 Bundle-Vendor: Andy Senn
